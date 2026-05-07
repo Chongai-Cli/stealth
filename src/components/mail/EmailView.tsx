@@ -22,15 +22,11 @@ import { cn } from "@/lib/utils";
 import { EventMailCard } from "@/features/calendar";
 import type { Email } from "./data";
 
-const smartReplies = ["Sounds good, let's review Friday.", "Can we push to next week?", "Thanks, looks great."];
-
 export function EmailView({ email }: { email: Email | null }) {
-  const [smartReplyOpen, setSmartReplyOpen] = useState(false);
-  const [replyMode, setReplyMode] = useState<"smart" | "manual" | null>(null);
+  const [replyMenuOpen, setReplyMenuOpen] = useState(false);
 
   useEffect(() => {
-    setSmartReplyOpen(false);
-    setReplyMode(null);
+    setReplyMenuOpen(false);
   }, [email?.id]);
 
   return (
@@ -70,16 +66,16 @@ export function EmailView({ email }: { email: Email | null }) {
                     key="reply"
                     whileTap={{ scale: 0.96 }}
                     whileHover={{ y: -1 }}
-                    onClick={() => setReplyMode(replyMode === null ? "smart" : null)}
+                    onClick={() => setReplyMenuOpen((open) => !open)}
                     className={cn(
                       "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs transition",
-                      replyMode ? "bg-white/[0.08] text-foreground" : "text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"
+                      replyMenuOpen ? "bg-white/[0.08] text-foreground" : "text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"
                     )}
                   >
                     <Reply className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Reply</span>
                   </motion.button>
                   <AnimatePresence>
-                    {replyMode && (
+                    {replyMenuOpen && (
                       <motion.div
                         initial={{ opacity: 0, y: -8, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -87,17 +83,6 @@ export function EmailView({ email }: { email: Email | null }) {
                         transition={{ duration: 0.15 }}
                         className="absolute top-full z-40 mt-2 w-40 rounded-md border border-white/[0.12] bg-[oklch(0.15_0.005_270_/_0.88)] p-1.5 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.9)] backdrop-blur-xl"
                       >
-                        <motion.button
-                          whileHover={{ x: 2 }}
-                          whileTap={{ scale: 0.98 }}
-                          onClick={() => setSmartReplyOpen(true)}
-                          className="w-full rounded-sm px-3 py-2 text-left text-xs text-foreground/90 transition hover:bg-white/[0.06]"
-                        >
-                          <div className="flex items-center gap-2">
-                            <Sparkles className="h-3 w-3" />
-                            <span>Smart reply</span>
-                          </div>
-                        </motion.button>
                         <motion.button
                           whileHover={{ x: 2 }}
                           whileTap={{ scale: 0.98 }}
@@ -140,7 +125,7 @@ export function EmailView({ email }: { email: Email | null }) {
               </div>
             </div>
 
-            <div className="scrollbar-thin flex-1 overflow-y-auto px-5 pb-28 pt-5 sm:px-7">
+            <div className="scrollbar-thin flex-1 overflow-y-auto px-5 py-5 sm:px-7">
               <article className="mx-auto w-full max-w-[920px]">
                 <div className="border-b border-white/[0.07] pb-5">
                   <div className="min-w-0 flex-1">
@@ -196,44 +181,6 @@ export function EmailView({ email }: { email: Email | null }) {
               </article>
             </div>
 
-            <AnimatePresence>
-              {smartReplyOpen ? (
-                <motion.div
-                  initial={{ opacity: 0, y: 8, scale: 0.96 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                  transition={{ duration: 0.18 }}
-                  className="absolute bottom-[98px] right-4 z-20 w-[min(330px,calc(100%-2rem))] rounded-md border border-white/[0.12] bg-[oklch(0.13_0.005_270_/_0.78)] p-3 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.95),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-2xl"
-                >
-                  <div className="mail-reader-meta mb-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                    <Sparkles className="h-3 w-3" /> Smart reply
-                  </div>
-                  <div className="grid gap-1.5">
-                    {smartReplies.map((reply) => (
-                      <motion.button
-                        key={reply}
-                        whileHover={{ x: -2 }}
-                        whileTap={{ scale: 0.98 }}
-                        className="rounded-md border border-white/[0.08] bg-white/[0.045] px-3 py-2 text-left text-xs leading-5 text-foreground/90 transition hover:border-white/[0.14] hover:bg-white/[0.08]"
-                      >
-                        {reply}
-                      </motion.button>
-                    ))}
-                  </div>
-                </motion.div>
-              ) : null}
-            </AnimatePresence>
-
-            <motion.button
-              whileTap={{ scale: 0.94 }}
-              onClick={() => setSmartReplyOpen((open) => !open)}
-              className="mail-reader-meta absolute bottom-10 right-4 z-30 flex h-11 w-[168px] items-center gap-3 rounded-md border border-white/[0.13] bg-white/[0.055] px-4 text-xs font-medium text-foreground/92 shadow-[0_18px_54px_-28px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.14),inset_0_-1px_0_rgba(0,0,0,0.18)] backdrop-blur-2xl transition hover:border-white/[0.2] hover:bg-white/[0.09]"
-            >
-              <span className="grid h-5 w-5 place-items-center rounded-md border border-white/[0.12] bg-white/[0.06] shadow-[inset_0_1px_0_rgba(255,255,255,0.13)]">
-                <Sparkles className="h-3.5 w-3.5 text-foreground/80" />
-              </span>
-              <span>Smart reply</span>
-            </motion.button>
           </motion.div>
         )}
       </AnimatePresence>

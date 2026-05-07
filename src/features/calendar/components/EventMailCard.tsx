@@ -6,7 +6,7 @@ export function EventMailCard({ event }: { event: MailEvent }) {
   return (
     <div className="event-mail-hero relative mb-6 mt-7 h-[220px] max-w-[480px] overflow-hidden rounded-2xl border border-white/[0.09] shadow-[0_24px_72px_-42px_rgba(0,0,0,0.95),inset_0_1px_0_rgba(255,255,255,0.12)] xl:max-w-[520px]">
       <div className="event-mail-ridges" />
-      <div className="event-calendar-card absolute left-1/2 top-6 z-10 w-[min(260px,calc(100%-1.5rem))] -translate-x-1/2 rounded-[20px] border border-white/[0.13] p-3.5 text-foreground shadow-[0_28px_70px_-36px_rgba(0,0,0,0.95),inset_0_1px_0_rgba(255,255,255,0.16)]">
+      <div className="event-calendar-card absolute left-[55%] top-1/2 z-10 w-[min(260px,calc(100%-1.5rem))] -translate-x-1/2 -translate-y-1/2 rounded-[20px] border border-white/[0.13] p-3.5 text-foreground shadow-[0_28px_70px_-36px_rgba(0,0,0,0.95),inset_0_1px_0_rgba(255,255,255,0.16)]">
         <div className="mail-reader-meta flex items-center gap-2 text-[10px] text-muted-foreground">
           <button className="rounded-md border border-white/[0.13] bg-white/70 px-4 py-1.5 font-medium text-background">
             {event.cadence}
@@ -57,7 +57,7 @@ export function EventMailCard({ event }: { event: MailEvent }) {
         </div>
       </div>
 
-      <div className="mail-reader-meta absolute bottom-4 left-4 right-4 z-10 flex flex-wrap items-center justify-between gap-2 text-[10px] text-muted-foreground">
+      <div className="mail-reader-meta absolute bottom-3 left-4 right-4 z-20 flex flex-wrap items-center justify-between gap-2 text-[10px] text-muted-foreground">
         <span className="rounded-md border border-white/[0.1] bg-white/[0.04] px-2.5 py-1 backdrop-blur-xl">
           Upcoming event
         </span>
