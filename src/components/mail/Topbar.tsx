@@ -80,8 +80,10 @@ export function Topbar({
   useEffect(() => {
     const onResize = () => {
       if (filterOpen && filterRef.current) setFilterRect(filterRef.current.getBoundingClientRect());
-      if (accountOpen && accountRef.current) setAccountRect(accountRef.current.getBoundingClientRect());
-      if (notificationsOpen && notificationsRef.current) setNotifRect(notificationsRef.current.getBoundingClientRect());
+      if (accountOpen && accountRef.current)
+        setAccountRect(accountRef.current.getBoundingClientRect());
+      if (notificationsOpen && notificationsRef.current)
+        setNotifRect(notificationsRef.current.getBoundingClientRect());
     };
     window.addEventListener("resize", onResize);
     window.addEventListener("scroll", onResize, true);
@@ -116,7 +118,11 @@ export function Topbar({
 
       <div className="hidden items-center gap-1.5 lg:flex">
         {quickActions.map((action) => (
-          <QuickAction key={action.label} {...action} />
+          <QuickAction
+            key={action.label}
+            {...action}
+            onClick={() => onQuickAction(action.action)}
+          />
         ))}
       </div>
 
