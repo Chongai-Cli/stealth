@@ -90,7 +90,7 @@ export function Compose({
   }, [open, initialTo, initialSubject, initialBody, initialPostage]);
 
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { 
+    const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         if (emojiOpen) {
           setEmojiOpen(false);
@@ -111,7 +111,7 @@ export function Compose({
   const insertAtCursor = (text: string) => {
     const textarea = textareaRef.current;
     if (!textarea) return;
-    
+
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const newValue = body.slice(0, start) + text + body.slice(end);
