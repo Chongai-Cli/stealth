@@ -42,16 +42,20 @@ const quickActions: {
   { label: "Files", value: "9", action: "files", icon: Paperclip },
 ];
 
-export function Topbar({ onOpenPalette, onOpenSettings, onShowToast }: TopbarProps) {
+export function Topbar({
+  onOpenPalette,
+  onOpenSettings,
+  onShowToast,
+  filters,
+  onFiltersChange,
+  onQuickAction,
+  onViewNotifications,
+}: TopbarProps) {
   const [focused, setFocused] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [filters, setFilters] = useState({
-    unreadOnly: false,
-    hasAttachments: false,
-    dateRange: "all" as "all" | "today" | "week" | "month",
-  });
+  const [account, setAccount] = useState<"personal" | "protocol">("personal");
 
   const filterRef = useRef<HTMLDivElement>(null);
   const accountRef = useRef<HTMLDivElement>(null);
