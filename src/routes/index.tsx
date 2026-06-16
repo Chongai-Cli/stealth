@@ -1,16 +1,28 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AmbientBackground } from "@/components/mail/AmbientBackground";
+import { BulkConfirmDialog } from "@/components/mail/BulkConfirmDialog";
 import { Sidebar } from "@/components/mail/Sidebar";
 import { Topbar } from "@/components/mail/Topbar";
 import { EmailList } from "@/components/mail/EmailList";
 import { EmailView } from "@/components/mail/EmailView";
-import { Compose, type ComposeSubmission } from "@/components/mail/Compose";
+import { Compose } from "@/components/mail/Compose";
+import type { ComposeSubmission } from "@/components/mail/composeValidation";
 import { RightPanel, type ContextAction } from "@/components/mail/RightPanel";
-import { CommandPalette } from "@/components/mail/CommandPalette";
 import { SettingsModal } from "@/components/mail/SettingsModal";
+import { AttachmentPreviewDrawer } from "@/components/mail/AttachmentPreviewDrawer";
+import {
+  buildBulkActionPatch,
+  getBulkActionConfirmation,
+  getBulkActionProgressLabel,
+  type BulkActionConfirmation,
+  type BulkActionRequest,
+  type BulkFailure,
+  type BulkProgressState,
+} from "@/components/mail/bulk-actions";
 import {
   defaultMailFilters,
+  deriveProof,
   emails as initialEmails,
   getEmailsForFolder,
   mailFolders,
@@ -22,7 +34,35 @@ import { usePreferences } from "@/features/preferences";
 import { CalendarWorkspace, useCalendar } from "@/features/calendar";
 import { FeedbackViewport } from "@/features/design-system/feedback/feedback-viewport";
 import { useFeedback } from "@/features/design-system/feedback/use-feedback";
-import { OnboardingModal, draftToMailboxPolicy, type OnboardingDraft } from "@/features/onboarding";
+import { ImportWizard, type ImportedContact } from "@/features/contacts";
+import {
+  SenderConversionDialog,
+  resolveSenderConversion,
+  useSenderConversion,
+  type SenderConversionTarget,
+  type SenderPolicyChoice,
+} from "@/features/sender-conversion";
+import {
+  CommandPalette,
+  ShortcutOverlay,
+  getShortcutAction,
+  type CommandId,
+  type ShortcutActionId,
+} from "@/features/command-palette";
+import {
+  SnoozeDialog,
+  buildSnoozeState,
+  formatSnoozeSummary,
+  getSnoozePreset,
+  snoozePatch,
+  unsnoozePatch,
+  useSnooze,
+  type SnoozeTarget,
+} from "@/features/snooze";
+import type { SnoozeState } from "@/components/mail/data";
+import { useIsMobile } from "@/lib/use-media-query";
+import { RequestsTriageBoard } from "@/features/requests";
+import { ProofInspectorModal } from "@/features/proof-inspector";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -36,13 +76,28 @@ export const Route = createFileRoute("/")({
       },
     ],
   }),
-  component: MailApp,
+  component: IndexPage,
 });
 
-function MailApp() {
+function IndexPage() {
+  return <MailApp isDemoMode />;
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => globalThis.setTimeout(resolve, ms));
+}
+
+function MailApp({ isDemoMode }: { isDemoMode?: boolean }) {
   const [folder, setFolder] = useState<MailFolder>("inbox");
   const [emails, setEmails] = useState<Email[]>(initialEmails);
   const [selectedId, setSelectedId] = useState<string | null>(initialEmails[0].id);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkProgress, setBulkProgress] = useState<BulkProgressState | null>(null);
+  const [bulkFailures, setBulkFailures] = useState<BulkFailure[]>([]);
+  const [bulkConfirmation, setBulkConfirmation] = useState<{
+    request: BulkActionRequest;
+    confirmation: BulkActionConfirmation;
+  } | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeInitial, setComposeInitial] = useState<{
@@ -52,56 +107,44 @@ function MailApp() {
   }>({});
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [customFolder, setCustomFolder] = useState<string | null>(null);
   const [filters, setFilters] = useState<MailFilters>(defaultMailFilters);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [calendarEventId, setCalendarEventId] = useState<string | null>(null);
   const [calendarCreateRequest, setCalendarCreateRequest] = useState(0);
-  const { preferences, setPreferences, hydrated } = usePreferences();
+  const { preferences, setPreferences } = usePreferences();
+  const [settingsSnapshot, setSettingsSnapshot] = useState<typeof preferences | null>(null);
+  const senderConversion = useSenderConversion();
+  const snooze = useSnooze();
+  const isMobile = useIsMobile();
+  const [previewAttachment, setPreviewAttachment] = useState<{
+    name: string;
+    size: string;
+    type: string;
+  } | null>(null);
+  const [shortcutOverlayOpen, setShortcutOverlayOpen] = useState(false);
+  const [proofInspectorOpen, setProofInspectorOpen] = useState(false);
+  const [proofInspectorQuery, setProofInspectorQuery] = useState("");
 
-  // Gate: show onboarding only after localStorage has been read (hydrated) and only
-  // when it has not been completed in a previous session.
-  const showOnboarding = hydrated && !preferences.onboardingCompleted;
+  const handleOpenMessageFromInspector = useCallback((email: Email) => {
+    setCustomFolder(null);
+    setFilters(defaultMailFilters);
+    setFolder(email.folder);
+    setSelectedId(email.id);
+    setSelectedIds([]);
+  }, []);
 
-  /**
-   * Called by OnboardingModal once all 7 steps are complete.
-   * 1. Submits the mailbox policy to the protocol API.
-   * 2. Merges the draft into local UiPreferences so Settings reflects the same values.
-   * Errors propagate back to PolicyReviewStep for inline display (no silent swallow).
-   */
-  const handleOnboardingComplete = useCallback(
-    async (walletAddress: string, draft: OnboardingDraft) => {
-      const policy = draftToMailboxPolicy(draft);
-
-      const response = await fetch(`/api/v1/policies/${walletAddress}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "x-stealth-address": walletAddress,
-        },
-        body: JSON.stringify(policy),
-      });
-
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        const message =
-          (body as { error?: { message?: string } }).error?.message ??
-          `Policy submission failed (HTTP ${response.status}).`;
-        throw new Error(message);
-      }
-
-      setPreferences((prev) => ({
-        ...prev,
-        unknownSenders: draft.unknownSenderRule,
-        minimumPostage: draft.minimumPostage,
-        receiptOnDelivery: draft.receiptOnDelivery,
-        onboardingCompleted: true,
-      }));
-    },
-    [setPreferences],
-  );
   const calendar = useCalendar();
   const { dismiss: dismissFeedback, items: feedbackItems, notify: showToast } = useFeedback();
+
+  const handleImportSave = useCallback(
+    (contacts: ImportedContact[]) => {
+      setImportOpen(false);
+      showToast(`${contacts.length} contact${contacts.length !== 1 ? "s" : ""} imported`);
+    },
+    [showToast],
+  );
 
   const folderCounts = useMemo(
     () =>
@@ -112,6 +155,8 @@ function MailApp() {
   );
   const visibleEmails = useMemo(() => getEmailsForFolder(emails, folder), [emails, folder]);
   const selected = emails.find((e) => e.id === selectedId) ?? null;
+  const snoozeEmail = emails.find((email) => email.id === snooze.target?.emailId) ?? null;
+  const selectedSnoozeState = snoozeEmail?.folder === "snoozed" ? snoozeEmail.snooze : undefined;
 
   const updateEmail = (id: string, patch: Partial<Email>) => {
     setEmails((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
@@ -120,6 +165,80 @@ function MailApp() {
   const openCompose = (initial: { to?: string; subject?: string; body?: string } = {}) => {
     setComposeInitial(initial);
     setComposeOpen(true);
+  };
+
+  const openSettings = useCallback(() => {
+    setSettingsSnapshot(preferences);
+    setSettingsOpen(true);
+  }, [preferences]);
+
+  const openCalendar = useCallback(
+    (eventId?: string | null) => {
+      setCalendarEventId(eventId ?? null);
+      setCalendarOpen(true);
+    },
+    [setCalendarEventId, setCalendarOpen],
+  );
+
+  // Opening the flow is inert — it only puts the sender in focus. No policy
+  // changes until the user explicitly confirms a choice in the dialog.
+  const openSenderConversion = (e: Email) =>
+    senderConversion.open({
+      emailId: e.id,
+      sender: e.from,
+      address: e.email,
+      currentPolicy: e.senderPolicy,
+    });
+
+  // Single applicator: mutating the shared `emails` array re-renders every open
+  // surface (list, reader, sender card, sidebar counts) from one source of truth.
+  const handleConvertSender = (target: SenderConversionTarget, choice: SenderPolicyChoice) => {
+    const email = emails.find((item) => item.id === target.emailId);
+    if (!email) return;
+    const result = resolveSenderConversion(email, choice);
+    updateEmail(email.id, result.patch);
+    showToast(result.toast.message, { tone: result.toast.tone });
+  };
+
+  // Snooze opens the guided dialog; nothing changes until the user confirms.
+  const openSnooze = (e: Email) => snooze.open({ emailId: e.id, subject: e.subject });
+
+  const handleSnooze = (target: SnoozeTarget, state: SnoozeState) => {
+    updateEmail(target.emailId, snoozePatch(state));
+    snooze.close();
+    showToast(formatSnoozeSummary(state), { tone: "success" });
+  };
+
+  const handleUnsnooze = (e: Email) => {
+    updateEmail(e.id, unsnoozePatch());
+    showToast(`"${e.subject}" returned to your inbox`);
+  };
+
+  const applySenderCommand = (choice: SenderPolicyChoice, email: Email) => {
+    const result = resolveSenderConversion(email, choice);
+    updateEmail(email.id, result.patch);
+    showToast(result.toast.message, { tone: result.toast.tone });
+  };
+
+  const openQuickSnooze = (email: Email) => {
+    const now = new Date();
+    const remindAt = getSnoozePreset("tomorrow").resolve(now);
+    const state = buildSnoozeState("tomorrow", remindAt, now);
+    handleSnooze({ emailId: email.id, subject: email.subject }, state);
+  };
+
+  const handleArchive = (e: Email) => {
+    updateEmail(e.id, { folder: "archive" });
+    showToast(`"${e.subject}" archived`);
+  };
+
+  const handleStar = (e: Email) => {
+    updateEmail(e.id, { starred: !e.starred });
+    showToast(e.starred ? `Unstarred "${e.subject}"` : `Starred "${e.subject}"`);
+  };
+
+  const handleMobileSnooze = (e: Email) => {
+    openSnooze(e);
   };
 
   const quoteBody = (e: Email) =>
@@ -166,14 +285,9 @@ function MailApp() {
       updateEmail(e.id, { starred: !e.starred });
       showToast(e.starred ? "Removed star" : "Starred");
     },
-    onApproveSender: (e: Email) => {
-      updateEmail(e.id, { folder: "verified" });
-      showToast(`${e.from} can now mail you`);
-    },
-    onBlockSender: (e: Email) => {
-      updateEmail(e.id, { folder: "spam" });
-      showToast(`${e.from} blocked and postage marked for refund`);
-    },
+    onConvertSender: openSenderConversion,
+    onSnooze: openSnooze,
+    onUnsnooze: handleUnsnooze,
     onShowToast: showToast,
     onAddEvent: (e: Email) => {
       if (!e.event) return;
@@ -183,20 +297,91 @@ function MailApp() {
     },
     getCalendarEvent: (e: Email) =>
       calendar.events.find((event) => event.sourceEmailId === e.id) ?? null,
-    onOpenCalendar: (eventId?: string) => {
-      setCalendarEventId(eventId ?? null);
-      setCalendarOpen(true);
-    },
+    onOpenCalendar: openCalendar,
     onCalendarResponseChange: calendar.updateResponse,
     onCalendarReminderChange: calendar.updateReminder,
+    onPreviewAttachment: (attachment: { name: string; size: string; type: string }) =>
+      setPreviewAttachment(attachment),
+  };
+
+  const runBulkAction = async (request: BulkActionRequest) => {
+    if (!selectedEmails.length) return;
+
+    const targets = selectedEmails;
+    let failures: BulkFailure[] = [];
+    setBulkFailures([]);
+    setBulkProgress({
+      action: request.action,
+      label: getBulkActionProgressLabel(request, targets.length),
+      total: targets.length,
+      completed: 0,
+      failures: [],
+    });
+
+    for (const email of targets) {
+      const result = buildBulkActionPatch(request, email);
+      if (!result.ok) {
+        failures = [...failures, { id: email.id, subject: email.subject, reason: result.reason }];
+        setBulkProgress((current) =>
+          current
+            ? {
+                ...current,
+                completed: current.completed + 1,
+                failures,
+              }
+            : current,
+        );
+        continue;
+      }
+
+      updateEmail(email.id, result.patch);
+      await delay(90);
+      setBulkProgress((current) =>
+        current
+          ? {
+              ...current,
+              completed: current.completed + 1,
+              failures,
+            }
+          : current,
+      );
+    }
+
+    const successCount = targets.length - failures.length;
+    setBulkFailures(failures);
+    setBulkProgress((current) =>
+      current
+        ? {
+            ...current,
+            completed: current.total,
+            failures,
+          }
+        : current,
+    );
+    setSelectedIds([]);
+
+    if (failures.length > 0) {
+      showToast(
+        `${failures.length} selected message${failures.length === 1 ? "" : "s"} could not be updated`,
+        { tone: "danger" },
+      );
+    } else if (successCount > 0) {
+      showToast(`${getBulkActionProgressLabel(request, successCount)} complete`);
+    }
+  };
+
+  const handleBulkActionRequest = (request: BulkActionRequest) => {
+    if (!selectedEmails.length) return;
+    const confirmation = getBulkActionConfirmation(request, selectedEmails);
+    if (confirmation) {
+      setBulkConfirmation({ request, confirmation });
+      return;
+    }
+    void runBulkAction(request);
   };
 
   const handleContextAction = (action: ContextAction, email: Email) => {
-    if (action === "snooze") {
-      updateEmail(email.id, { folder: "snoozed", time: "Tomorrow" });
-      showToast(`Snoozed "${email.subject}" until tomorrow`);
-      return;
-    }
+    // Snooze is handled by the guided dialog via onSnooze, not here.
     if (action === "schedule") {
       openCompose({
         to: email.email,
@@ -248,20 +433,154 @@ function MailApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
 
+  const runCommand = useCallback(
+    (id: CommandId, overrideEmail?: Email) => {
+      const email = overrideEmail ?? selected;
+
+      switch (id) {
+        case "compose":
+          openCompose();
+          return;
+        case "open-calendar":
+          openCalendar(
+            email?.event
+              ? calendar.events.find((item) => item.sourceEmailId === email.id)?.id
+              : null,
+          );
+          return;
+        case "open-settings":
+          openSettings();
+          return;
+        case "open-shortcuts":
+          setShortcutOverlayOpen(true);
+          return;
+        case "go-inbox":
+          setCustomFolder(null);
+          setFolder("inbox");
+          return;
+        case "go-starred":
+          setCustomFolder(null);
+          setFolder("starred");
+          return;
+        case "go-sent":
+          setCustomFolder(null);
+          setFolder("sent");
+          return;
+        case "archive-thread":
+          if (email) handleArchive(email);
+          return;
+        case "approve-sender":
+          if (email) applySenderCommand("allow", email);
+          return;
+        case "block-sender":
+          if (email) applySenderCommand("block", email);
+          return;
+        case "quote-postage":
+          showToast(
+            `Minimum postage for ${email?.from ?? "this sender"} is ${preferences.minimumPostage} XLM`,
+          );
+          return;
+        case "inspect-proof":
+          if (email) {
+            const messageHash = `0x${email.id.repeat(16).padEnd(64, "a")}d8c7e9`;
+            try {
+              navigator.clipboard.writeText(messageHash);
+              showToast(`Proof ${messageHash.slice(0, 10)}... copied`);
+            } catch {
+              // Ignore clipboard exceptions in test/headless environments
+            }
+            setProofInspectorQuery(messageHash);
+            setProofInspectorOpen(true);
+          }
+          return;
+        case "open-proof-inspector":
+          setProofInspectorQuery("");
+          setProofInspectorOpen(true);
+          return;
+        case "settle-delivery":
+          if (email) {
+            updateEmail(email.id, { receiptState: "sent", folder: "receipts" });
+            showToast(`Delivery settled for "${email.subject}"`);
+          }
+          return;
+        case "refund-postage":
+          if (email) {
+            updateEmail(email.id, {
+              folder: "spam",
+              labels: [...(email.labels ?? []), "Refunded"],
+            });
+            showToast(`Postage refunded for "${email.subject}"`);
+          }
+          return;
+        case "relay-diagnostics":
+          setCustomFolder(null);
+          setFolder("pending");
+          showToast("Relay diagnostics opened from Pending Proof");
+          return;
+      }
+    },
+    [
+      applySenderCommand,
+      calendar.events,
+      handleArchive,
+      openCalendar,
+      openCompose,
+      openSettings,
+      preferences.minimumPostage,
+      selected,
+      showToast,
+      updateEmail,
+    ],
+  );
+
+  const runShortcutAction = useCallback(
+    (action: ShortcutActionId) => {
+      switch (action) {
+        case "open-palette":
+          setPaletteOpen((open) => !open);
+          return;
+        case "open-shortcuts":
+          setShortcutOverlayOpen(true);
+          return;
+        case "compose":
+          runCommand("compose");
+          return;
+        case "archive-thread":
+          runCommand("archive-thread");
+          return;
+        case "snooze-thread":
+          if (selected) openQuickSnooze(selected);
+          return;
+        case "approve-sender":
+          runCommand("approve-sender");
+          return;
+        case "block-sender":
+          runCommand("block-sender");
+          return;
+        case "open-calendar":
+          runCommand("open-calendar");
+          return;
+        case "open-settings":
+          runCommand("open-settings");
+          return;
+        case "open-proof-inspector":
+          runCommand("open-proof-inspector");
+          return;
+      }
+    },
+    [openQuickSnooze, runCommand, selected],
+  );
+
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setPaletteOpen((v) => !v);
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "n") {
-        e.preventDefault();
-        openCompose();
-      }
+      const action = getShortcutAction(e);
+      if (!action) return;
+      e.preventDefault();
+      runShortcutAction(action);
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, []);
+  }, [runShortcutAction]);
 
   useEffect(() => {
     if (customFolder) return;
@@ -281,6 +600,11 @@ function MailApp() {
   return (
     <div className="relative min-h-screen text-foreground">
       <AmbientBackground />
+      {isDemoMode && (
+        <div className="absolute top-0 inset-x-0 z-50 bg-primary/20 backdrop-blur-md border-b border-primary/30 py-1 text-center text-xs font-medium text-primary shadow-sm pointer-events-none">
+          Demo Mode: Showing placeholder data.
+        </div>
+      )}
 
       <div className="flex min-h-screen">
         <Sidebar
@@ -300,7 +624,10 @@ function MailApp() {
         <div className="flex min-w-0 flex-1 flex-col">
           <Topbar
             onOpenPalette={() => setPaletteOpen(true)}
-            onOpenSettings={() => setSettingsOpen(true)}
+            onOpenSettings={openSettings}
+            onOpenProofInspector={() => runCommand("open-proof-inspector")}
+            onOpenShortcuts={() => setShortcutOverlayOpen(true)}
+            onImportContacts={() => setImportOpen(true)}
             onShowToast={showToast}
             filters={filters}
             onFiltersChange={setFilters}
@@ -320,44 +647,75 @@ function MailApp() {
             }}
           />
           <div className="flex min-w-0 flex-1">
-            <EmailList
-              emails={emails}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
-              folder={folder}
-              filters={filters}
-              customFolder={customFolder}
-              compact={preferences.compactMode}
-              showAvatars={preferences.showAvatars}
-            />
-            <EmailView email={selected} actions={emailActions} />
-            <RightPanel
-              email={selected}
-              onAction={handleContextAction}
-              calendarEvents={calendar.visibleEvents}
-              calendars={calendar.calendars}
-              onOpenCalendar={(eventId) => {
-                setCalendarEventId(eventId ?? null);
-                setCalendarOpen(true);
-              }}
-              onCreateEvent={() => {
-                setCalendarEventId(null);
-                setCalendarOpen(true);
-                setCalendarCreateRequest((request) => request + 1);
-              }}
-              onDraftReply={(email, prompt) =>
-                openCompose({
-                  to: email.email,
-                  subject: email.subject.startsWith("Re: ")
-                    ? email.subject
-                    : `Re: ${email.subject}`,
-                  body: `${prompt}\n\nDrafted response:\nThanks for the note. I reviewed the context and will follow up with the next step shortly.${quoteBody(email)}`,
-                })
-              }
-            />
+            {folder === "requests" ? (
+              <RequestsTriageBoard
+                emails={emails}
+                onUpdateEmail={updateEmail}
+                onShowToast={showToast}
+              />
+            ) : (
+              <>
+                <EmailList
+                  emails={emails}
+                  selectedId={selectedId}
+                  selectedIds={selectedIds}
+                  onSelect={setSelectedId}
+                  onSelectionChange={setSelectedIds}
+                  onBulkAction={handleBulkActionRequest}
+                  bulkProgress={bulkProgress}
+                  bulkFailures={bulkFailures}
+                  onConvertSender={openSenderConversion}
+                  folder={folder}
+                  filters={filters}
+                  customFolder={customFolder}
+                  compact={preferences.compactMode}
+                  showAvatars={preferences.showAvatars}
+                  useMobile={isMobile}
+                  onArchive={handleArchive}
+                  onStar={handleStar}
+                  onSnooze={handleMobileSnooze}
+                />
+                <EmailView email={selected} actions={emailActions} />
+                <RightPanel
+                  email={selected}
+                  onAction={handleContextAction}
+                  onConvertSender={openSenderConversion}
+                  onSnooze={openSnooze}
+                  calendarEvents={calendar.visibleEvents}
+                  calendars={calendar.calendars}
+                  onShowToast={showToast}
+                  onOpenCalendar={openCalendar}
+                  onCreateEvent={() => {
+                    setCalendarEventId(null);
+                    setCalendarOpen(true);
+                    setCalendarCreateRequest((request) => request + 1);
+                  }}
+                  onDraftReply={(email, prompt) =>
+                    openCompose({
+                      to: email.email,
+                      subject: email.subject.startsWith("Re: ")
+                        ? email.subject
+                        : `Re: ${email.subject}`,
+                      body: `${prompt}\n\nDrafted response:\nThanks for the note. I reviewed the context and will follow up with the next step shortly.${quoteBody(email)}`,
+                    })
+                  }
+                  onPreviewAttachment={(attachment) => setPreviewAttachment(attachment)}
+                />
+              </>
+            )}
           </div>
         </div>
       </div>
+
+      <BulkConfirmDialog
+        confirmation={bulkConfirmation?.confirmation ?? null}
+        onCancel={() => setBulkConfirmation(null)}
+        onConfirm={() => {
+          const request = bulkConfirmation?.request;
+          setBulkConfirmation(null);
+          if (request) void runBulkAction(request);
+        }}
+      />
 
       <Compose
         open={composeOpen}
@@ -371,32 +729,53 @@ function MailApp() {
       />
       <SettingsModal
         open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
+        onClose={() => {
+          setSettingsOpen(false);
+          setSettingsSnapshot(null);
+        }}
+        onCancel={() => {
+          if (settingsSnapshot) setPreferences(settingsSnapshot);
+          setSettingsOpen(false);
+          setSettingsSnapshot(null);
+          showToast("Settings changes discarded");
+        }}
         preferences={preferences}
         onChange={setPreferences}
-        onSave={() => showToast("Settings saved")}
+        onSave={() => {
+          setSettingsSnapshot(null);
+          showToast("Settings saved");
+        }}
       />
       <CommandPalette
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
-        onCompose={() => openCompose()}
+        context={{ email: selected, folder }}
+        emails={emails}
+        onRunCommand={runCommand}
         onNavigate={(f) => {
           setFolder(f);
           setCustomFolder(null);
         }}
-        onArchive={() => {
-          if (selected) {
-            emailActions.onArchive(selected);
-          }
-        }}
-        onOpenSettings={() => setSettingsOpen(true)}
-        emails={emails}
         onSelectEmail={(email) => {
           setCustomFolder(null);
           setFilters(defaultMailFilters);
           setFolder(email.folder);
           setSelectedId(email.id);
+          setSelectedIds([]);
         }}
+        onOpenSettings={openSettings}
+      />
+      <ShortcutOverlay
+        open={shortcutOverlayOpen}
+        onClose={() => setShortcutOverlayOpen(false)}
+      />
+      <ProofInspectorModal
+        open={proofInspectorOpen}
+        onClose={() => setProofInspectorOpen(false)}
+        emails={emails}
+        onOpenMessage={handleOpenMessageFromInspector}
+        onShowToast={showToast}
+        initialQuery={proofInspectorQuery}
       />
       <CalendarWorkspace
         open={calendarOpen}
@@ -417,7 +796,32 @@ function MailApp() {
 
       <FeedbackViewport items={feedbackItems} onDismiss={dismissFeedback} />
 
-      <OnboardingModal open={showOnboarding} onComplete={handleOnboardingComplete} />
+      <ImportWizard
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onSave={handleImportSave}
+      />
+
+      <SenderConversionDialog
+        target={senderConversion.target}
+        onConfirm={handleConvertSender}
+        onClose={senderConversion.close}
+      />
+
+      <SnoozeDialog
+        target={snooze.target}
+        initialState={selectedSnoozeState}
+        events={calendar.events}
+        onConfirm={handleSnooze}
+        onClose={snooze.close}
+      />
+
+      <AttachmentPreviewDrawer
+        isOpen={!!previewAttachment}
+        onClose={() => setPreviewAttachment(null)}
+        attachment={previewAttachment}
+        senderAddress={selected?.email}
+      />
     </div>
   );
 }
