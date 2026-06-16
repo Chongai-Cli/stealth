@@ -17,6 +17,7 @@ const NAV_ITEMS: DashboardNavItem[] = [
   { id: "mail", label: "Mail", description: "Demo mail fixtures and delivery states" },
   { id: "templates", label: "Templates", description: "Pick message templates to populate drafts" },
   { id: "audit", label: "Audit", description: "Demo protocol event log" },
+  { id: "analytics", label: "Analytics", description: "Privacy-preserving product analytics" },
 ];
 
 const OVERVIEW_STATS: StatCard[] = [
@@ -63,6 +64,7 @@ const SECTION_ICON: Record<DashboardSection, React.ElementType> = {
   mail: Mail,
   templates: FileText,
   audit: Activity,
+  analytics: PieChart,
 };
 
 // ─── Content region components ────────────────────────────────────────────────
@@ -204,6 +206,7 @@ const SECTION_CONTENT: Record<DashboardSection, () => ReactNode> = {
   mail: MailContent,
   templates: TemplatesContent,
   audit: AuditContent,
+  analytics: AnalyticsContent,
 };
 
 // ─── Dashboard Shell ──────────────────────────────────────────────────────────
