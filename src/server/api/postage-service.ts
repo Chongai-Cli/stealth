@@ -11,6 +11,14 @@ import { getMailboxPolicy } from "./policy-service";
 import * as metrics from "./metrics";
 import type { ApiRepository } from "./repository";
 
+export type SubmitPostageContext = {
+  actorId?: string;
+  fingerprint?: string;
+  ip?: string;
+  relayId?: string;
+  sender?: string;
+};
+
 export async function quotePostage(
   repository: ApiRepository,
   input: { recipient: string; sender: string },
@@ -28,6 +36,7 @@ export async function quotePostage(
   }
 
   const trusted = rule === "allow";
+
   return {
     amount: trusted ? "0" : policy.minimumPostage,
     eligible: true,
@@ -40,44 +49,44 @@ export async function submitPostage(
   repository: ApiRepository,
   input: Omit<Postage, "createdAt" | "status">,
   now = new Date(),
-  context: {
-    accountId?: string;
-    fingerprint?: string;
-    ip?: string;
-    relayId?: string;
-    sender?: string;
-  } = {},
+  context: SubmitPostageContext = {},
 ) {
-  const accountId = context.accountId ?? "unknown";
+  const actorId = context.actorId ?? "unknown";
+
   const accountLimit = await checkAccountLimit(repository, input.sender);
   if (!accountLimit.allowed) {
     metrics.incrementCounter("postage_limit_rejected", {
-      accountId,
+      actorId,
       limit: "account",
     });
-    throw new ApiError(429, "rate_limited", "Account limit exceeded", {
+
+    throw new ApiError(429, "too_many_requests", "Account limit exceeded", {
       retryAfterSeconds: accountLimit.retryAfterSeconds,
     });
   }
 
-  const ipLimit = await checkIpLimit(repository, context.ip ?? "unknown");
+  const ip = context.ip ?? "unknown";
+  const ipLimit = await checkIpLimit(repository, ip);
   if (!ipLimit.allowed) {
     metrics.incrementCounter("postage_limit_rejected", {
-      ip: context.ip ?? "unknown",
+      ip,
       limit: "ip",
     });
-    throw new ApiError(429, "rate_limited", "IP limit exceeded", {
+
+    throw new ApiError(429, "too_many_requests", "IP limit exceeded", {
       retryAfterSeconds: ipLimit.retryAfterSeconds,
     });
   }
 
-  const deviceLimit = await checkDeviceLimit(repository, context.fingerprint ?? "");
+  const fingerprint = context.fingerprint ?? "";
+  const deviceLimit = await checkDeviceLimit(repository, fingerprint);
   if (!deviceLimit.allowed) {
     metrics.incrementCounter("postage_limit_rejected", {
-      fingerprint: context.fingerprint ?? "unknown",
+      fingerprint: fingerprint || "unknown",
       limit: "device",
     });
-    throw new ApiError(429, "rate_limited", "Device limit exceeded", {
+
+    throw new ApiError(429, "too_many_requests", "Device limit exceeded", {
       retryAfterSeconds: deviceLimit.retryAfterSeconds,
     });
   }
@@ -87,25 +96,30 @@ export async function submitPostage(
     input.sender,
     input.recipient,
   );
+
   if (!senderRecipientLimit.allowed) {
     const sender = context.sender ?? input.sender;
+
     metrics.incrementCounter("postage_limit_rejected", {
       limit: "sender_recipient",
       sender,
     });
-    throw new ApiError(429, "rate_limited", "Sender-recipient limit exceeded", {
+
+    throw new ApiError(429, "too_many_requests", "Sender-recipient limit exceeded", {
       retryAfterSeconds: senderRecipientLimit.retryAfterSeconds,
     });
   }
 
   const relayId = context.relayId?.trim() || "unknown";
   const relayLimit = await checkRelayLimit(repository, relayId);
+
   if (!relayLimit.allowed) {
     metrics.incrementCounter("postage_limit_rejected", {
       limit: "relay",
-      relayId: context.relayId ?? "unknown",
+      relayId,
     });
-    throw new ApiError(429, "rate_limited", "Relay limit exceeded", {
+
+    throw new ApiError(429, "too_many_requests", "Relay limit exceeded", {
       retryAfterSeconds: relayLimit.retryAfterSeconds,
     });
   }
@@ -115,11 +129,13 @@ export async function submitPostage(
   }
 
   const rule = await repository.getSenderRule(input.recipient, input.sender);
+
   if (rule === "block") {
     throw new ApiError(403, "forbidden", "The recipient has blocked this sender");
   }
 
   const { policy } = await getMailboxPolicy(repository, input.recipient);
+
   if (BigInt(input.amount) < BigInt(policy.minimumPostage)) {
     throw new ApiError(422, "validation_error", "Postage is below the mailbox minimum", {
       minimumPostage: policy.minimumPostage,
@@ -135,9 +151,11 @@ export async function submitPostage(
 
 export async function getPostage(repository: ApiRepository, messageId: string) {
   const postage = await repository.getPostage(messageId);
+
   if (!postage) {
     throw new ApiError(404, "not_found", "Postage was not found");
   }
+
   return postage;
 }
 
@@ -153,6 +171,7 @@ export async function resolvePostage(
   status: "refunded" | "settled",
 ) {
   const postage = await getPostage(repository, messageId);
+
   if (postage.status !== "pending") {
     throw new ApiError(409, "conflict", "Postage has already been resolved", {
       status: postage.status,

@@ -1,4 +1,1 @@
-export function incrementCounter(metric: string, labels: Record<string, string>): void {
-  void metric;
-  void labels;
-}
+export function incrementCounter(_metric: string, _labels: Record<string, string>): void {}

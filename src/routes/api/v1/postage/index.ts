@@ -5,7 +5,7 @@ import { requireActorMatches } from "@/server/api/actor";
 import { getApiContext } from "@/server/api/context";
 import { hash32Schema, stellarAddressSchema, stroopAmountSchema } from "@/server/api/domain";
 import { buildDeviceFingerprint } from "@/server/api/abuse-service";
-import { submitPostage } from "@/server/api/postage-service";
+import { submitPostage, type SubmitPostageContext } from "@/server/api/postage-service";
 import { parseJsonBody } from "@/server/api/request";
 import { apiSuccess, handleApiRequest } from "@/server/api/response";
 
@@ -44,18 +44,12 @@ export const Route = createFileRoute("/api/v1/postage/")({
             acceptEncoding,
             ipPrefix,
           });
-          const context = {
-            accountId: input.sender,
+          const context: SubmitPostageContext = {
+            actorId: input.sender,
             fingerprint,
             ip,
             relayId,
             sender: input.sender,
-          } as {
-            accountId?: string;
-            fingerprint?: string;
-            ip?: string;
-            relayId?: string;
-            sender?: string;
           };
           const postage = await submitPostage(
             getApiContext().repository,

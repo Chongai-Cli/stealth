@@ -171,7 +171,7 @@ describe("postage service", () => {
       }),
     ).rejects.toMatchObject({
       status: 429,
-      code: "rate_limited",
+      code: "too_many_requests",
       message: "Relay limit exceeded",
     });
   });
