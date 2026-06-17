@@ -31,6 +31,11 @@ import { PRESET_SCENARIOS } from "./fixtures/presets";
 import { CampaignSnapshots } from "./components/CampaignSnapshots";
 import type { Draft } from "./types/draft";
 import { AdminDataTable, type Column } from "./components/AdminDataTable";
+import { CampaignSnapshots } from "./components/CampaignSnapshots";
+import { ValidationResultsPanel } from "./ValidationResultsPanel";
+import { validateCampaignDrafts } from "./validation";
+import type { Draft } from "./types/draft";
+import type { ValidationNavigation } from "./validation-types";
 
 // ─── Default Deterministic fake data ──────────────────────────────────────────
 
@@ -645,8 +650,41 @@ function AuditContent({ auditEvents }: { auditEvents: PresetAuditEvent[] }) {
   );
 }
 
-function TemplatesContent() {
-  return <TemplatePicker />;
+function TemplatesContent({
+  dataset,
+  onDatasetChange,
+}: {
+  dataset: Draft[];
+  onDatasetChange: (dataset: Draft[]) => void;
+}) {
+  return <TemplatePicker dataset={dataset} onDatasetChange={onDatasetChange} />;
+}
+
+function CampaignsContent({
+  dataset,
+  onDatasetChange,
+  onSelectIssue,
+}: {
+  dataset: Draft[];
+  onDatasetChange: (dataset: Draft[]) => void;
+  onSelectIssue: (nav: ValidationNavigation) => void;
+}) {
+  const issues = validateCampaignDrafts(dataset);
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[1fr_350px] items-start">
+      <div className="space-y-6">
+        <CampaignSnapshots currentDataset={dataset} onRestoreDataset={onDatasetChange} />
+      </div>
+      <div className="space-y-6 lg:sticky lg:top-4">
+        <ValidationResultsPanel
+          issues={issues}
+          onSelectIssue={onSelectIssue}
+          title="Campaign Validation"
+        />
+      </div>
+    </div>
+  );
 }
 
 function CampaignsContent() {
@@ -689,6 +727,7 @@ export function DemoAdminDashboard({ className }: DemoAdminDashboardProps) {
   const [activePresetId, setActivePresetId] = useState<PresetId>("none");
   const [selectedAccountAddress, setSelectedAccountAddress] = useState<string | null>(null);
   const [selectedMailSubject, setSelectedMailSubject] = useState<string | null>(null);
+  const [draftDataset, setDraftDataset] = useState<Draft[]>([]);
 
   const activePreset = PRESET_SCENARIOS.find((p) => p.id === activePresetId);
 
@@ -824,7 +863,17 @@ export function DemoAdminDashboard({ className }: DemoAdminDashboardProps) {
 
           {activeSection === "events" && <EventsContent events={events} />}
 
-          {activeSection === "templates" && <TemplatesContent />}
+          {activeSection === "templates" && (
+            <TemplatesContent dataset={draftDataset} onDatasetChange={setDraftDataset} />
+          )}
+
+          {activeSection === "campaigns" && (
+            <CampaignsContent
+              dataset={draftDataset}
+              onDatasetChange={setDraftDataset}
+              onSelectIssue={() => handleSectionChange("templates")}
+            />
+          )}
 
           {activeSection === "campaigns" && <CampaignsContent />}
 
