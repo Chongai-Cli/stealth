@@ -36,29 +36,29 @@ type Note = {
   contactId: string;
   content: string;
   authorId: string;
-  createdAt: string;   // ISO 8601
-  updatedAt: string;   // ISO 8601
+  createdAt: string; // ISO 8601
+  updatedAt: string; // ISO 8601
   archivedAt: string | null;
 };
 ```
 
 ### Errors
 
-| Error | Condition | Shape |
-|---|---|---|
-| `ValidationError` | Input fails validation | `{ fields: [{ field, message }] }` |
-| `NoteNotFoundError` | Note id does not exist | `{ noteId: string }` |
+| Error               | Condition              | Shape                              |
+| ------------------- | ---------------------- | ---------------------------------- |
+| `ValidationError`   | Input fails validation | `{ fields: [{ field, message }] }` |
+| `NoteNotFoundError` | Note id does not exist | `{ noteId: string }`               |
 
 ## Service Operations
 
-| Operation | Input | Output | Error |
-|---|---|---|---|
-| `create` | `CreateNoteInput` | `Note` | `ValidationError` |
-| `getByContact` | `contactId: string` | `Note[]` | `ValidationError` |
-| `getById` | `id: string` | `Note` | `NoteNotFoundError` |
-| `update` | `id: string`, `UpdateNoteInput` | `Note` | `ValidationError`, `NoteNotFoundError` |
-| `delete` | `id: string` | `void` | `ValidationError`, `NoteNotFoundError` |
-| `archive` | `id: string` | `Note` | `ValidationError`, `NoteNotFoundError` |
+| Operation      | Input                           | Output   | Error                                  |
+| -------------- | ------------------------------- | -------- | -------------------------------------- |
+| `create`       | `CreateNoteInput`               | `Note`   | `ValidationError`                      |
+| `getByContact` | `contactId: string`             | `Note[]` | `ValidationError`                      |
+| `getById`      | `id: string`                    | `Note`   | `NoteNotFoundError`                    |
+| `update`       | `id: string`, `UpdateNoteInput` | `Note`   | `ValidationError`, `NoteNotFoundError` |
+| `delete`       | `id: string`                    | `void`   | `ValidationError`, `NoteNotFoundError` |
+| `archive`      | `id: string`                    | `Note`   | `ValidationError`, `NoteNotFoundError` |
 
 ## Determinism Guarantees
 

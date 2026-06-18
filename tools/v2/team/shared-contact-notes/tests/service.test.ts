@@ -49,33 +49,33 @@ describe("NoteService", () => {
     it("should throw ValidationError when content is empty", async () => {
       const service = createService();
 
-      await expect(
-        service.create({ ...validCreateInput, content: "" }),
-      ).rejects.toThrow(ValidationError);
+      await expect(service.create({ ...validCreateInput, content: "" })).rejects.toThrow(
+        ValidationError,
+      );
     });
 
     it("should throw ValidationError when content is only whitespace", async () => {
       const service = createService();
 
-      await expect(
-        service.create({ ...validCreateInput, content: "   " }),
-      ).rejects.toThrow(ValidationError);
+      await expect(service.create({ ...validCreateInput, content: "   " })).rejects.toThrow(
+        ValidationError,
+      );
     });
 
     it("should throw ValidationError when contactId is missing", async () => {
       const service = createService();
 
-      await expect(
-        service.create({ ...validCreateInput, contactId: "" }),
-      ).rejects.toThrow(ValidationError);
+      await expect(service.create({ ...validCreateInput, contactId: "" })).rejects.toThrow(
+        ValidationError,
+      );
     });
 
     it("should throw ValidationError when authorId is missing", async () => {
       const service = createService();
 
-      await expect(
-        service.create({ ...validCreateInput, authorId: "" }),
-      ).rejects.toThrow(ValidationError);
+      await expect(service.create({ ...validCreateInput, authorId: "" })).rejects.toThrow(
+        ValidationError,
+      );
     });
 
     it("should throw ValidationError with all field errors when multiple fields are invalid", async () => {

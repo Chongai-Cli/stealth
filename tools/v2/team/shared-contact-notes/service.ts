@@ -1,4 +1,11 @@
-import type { Note, NoteId, ContactId, CreateNoteInput, UpdateNoteInput, ServiceConfig } from "./types";
+import type {
+  Note,
+  NoteId,
+  ContactId,
+  CreateNoteInput,
+  UpdateNoteInput,
+  ServiceConfig,
+} from "./types";
 import { NoteNotFoundError, ValidationError } from "./errors";
 import { validateCreateNote, validateUpdateNote } from "./validation";
 

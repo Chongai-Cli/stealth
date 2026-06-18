@@ -5,7 +5,11 @@ export function validateCreateNote(
 ): Array<{ field: string; message: string }> {
   const errors: Array<{ field: string; message: string }> = [];
 
-  if (!input.contactId || typeof input.contactId !== "string" || input.contactId.trim().length === 0) {
+  if (
+    !input.contactId ||
+    typeof input.contactId !== "string" ||
+    input.contactId.trim().length === 0
+  ) {
     errors.push({ field: "contactId", message: "contactId is required" });
   }
   if (!input.content || typeof input.content !== "string" || input.content.trim().length === 0) {
