@@ -66,4 +66,3 @@ Filtering, copying, and exporting are read-only from the app's perspective. They
 - Use `Export` after filtering and confirm the downloaded JSON contains only filtered `AuditEvent` fields.
 - Check that mock data remains fake and that no message body, secret, private key, payment account, or live customer mail is present.
 - Run the most relevant local test, typecheck, or lint command when dependencies are available.
-
