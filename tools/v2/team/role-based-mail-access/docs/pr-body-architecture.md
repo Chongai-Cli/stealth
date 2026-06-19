@@ -15,5 +15,6 @@ Establishes the **Role-Based Mail Access** tool's isolated architecture contract
 ## Verification
 
 All local unit test suites run and pass cleanly:
+
 - Native guard tests check happy-path and 19 hostile threat vectors.
 - Vitest tests verify UI service policies changes.
