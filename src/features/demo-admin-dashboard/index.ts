@@ -387,6 +387,15 @@ export type { DemoFolder, MailboxGroup, FolderDefinition } from "./constants/fol
 export { FolderTaxonomySelector } from "./components/FolderTaxonomySelector";
 export type { FolderTaxonomySelectorProps } from "./components/FolderTaxonomySelector";
 
+// Campaign snapshot JSON export (issue #273): serializer, filename builder.
+export {
+  buildCampaignExport,
+  serializeCampaignSnapshot,
+  buildCampaignExportFilename,
+} from "./helpers/campaignExport";
+export { CAMPAIGN_EXPORT_SCHEMA_VERSION } from "./types/campaignExport";
+export type { CampaignExportMeta, CampaignSnapshotExport } from "./types/campaignExport";
+
 // Calendar Event Editor (issue #16): editor component, types, fixtures, validation.
 export { CalendarEventEditor } from "./components/CalendarEventEditor";
 export type { CalendarEventEditorProps } from "./components/CalendarEventEditor";
