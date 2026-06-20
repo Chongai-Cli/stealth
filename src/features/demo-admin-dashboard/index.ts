@@ -70,6 +70,8 @@ export { CampaignListTable } from "./components/CampaignListTable";
 export type { CampaignListTableProps } from "./components/CampaignListTable";
 export { MockPublishPanel } from "./components/MockPublishPanel";
 export type { MockPublishPanelProps } from "./components/MockPublishPanel";
+export { CampaignDiffPanel } from "./components/CampaignDiffPanel";
+export type { CampaignDiffPanelProps } from "./components/CampaignDiffPanel";
 export {
   buildCampaignListRows,
   clearCampaignSelection,
@@ -100,6 +102,19 @@ export type {
   MockPublishStatus,
   MockPublishStep,
 } from "./mockPublishWorkflow";
+export {
+  compareCampaignSnapshots,
+  formatCampaignDiffSummary,
+  getCampaignDiffEntriesByKind,
+  summarizeCampaignDiff,
+} from "./campaignDiff";
+export type {
+  CampaignDiffEntry,
+  CampaignDiffKind,
+  CampaignDiffResult,
+  CampaignDiffSection,
+  CampaignDiffSummary,
+} from "./campaignDiff";
 
 export {
   createTag,
