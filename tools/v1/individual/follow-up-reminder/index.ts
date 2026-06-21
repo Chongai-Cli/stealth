@@ -19,3 +19,10 @@ export type {
   SignalType,
 } from "./services/followUpReminder";
 export { sampleEmails, sampleEmailList } from "./services/fixtures";
+export {
+  FollowUpReminder,
+  FollowUpReminderCard,
+  FollowUpReminderEmptyState,
+  FollowUpReminderErrorState,
+  FollowUpReminderLoadingState,
+} from "./components";
