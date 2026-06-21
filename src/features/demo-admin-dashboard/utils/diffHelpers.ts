@@ -6,10 +6,7 @@ import type { DatasetDiff, FieldDiff, ItemDiff, DiffType } from "../types/diff";
  * Only compares top-level fields. For nested objects, it does a shallow comparison
  * or string representation check to keep the visual diff simple.
  */
-export function getFieldDiffs<T extends Record<string, any>>(
-  oldItem: T,
-  newItem: T
-): FieldDiff[] {
+export function getFieldDiffs<T extends Record<string, any>>(oldItem: T, newItem: T): FieldDiff[] {
   const diffs: FieldDiff[] = [];
   const allKeys = Array.from(new Set([...Object.keys(oldItem), ...Object.keys(newItem)]));
 
@@ -40,7 +37,7 @@ export function getFieldDiffs<T extends Record<string, any>>(
 export function compareItemList<T extends { id?: string; address?: string }>(
   oldList: T[] = [],
   newList: T[] = [],
-  idField: keyof T = "id" as keyof T
+  idField: keyof T = "id" as keyof T,
 ): ItemDiff[] {
   const diffs: ItemDiff[] = [];
   const oldMap = new Map(oldList.map((item) => [item[idField] as string, item]));
@@ -82,15 +79,12 @@ export function compareItemList<T extends { id?: string; address?: string }>(
 /**
  * Generates a full dataset diff between the original fixture and current draft.
  */
-export function calculateDatasetDiff(
-  original: DemoDataset,
-  current: DemoDataset
-): DatasetDiff {
+export function calculateDatasetDiff(original: DemoDataset, current: DemoDataset): DatasetDiff {
   const messageDiffs = compareItemList(original.messages, current.messages);
   const senderDiffs = compareItemList(
     original.senders || [],
     current.senders || [],
-    "address" as any
+    "address" as any,
   );
 
   const summary = {

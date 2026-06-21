@@ -16,7 +16,9 @@ describe("diffHelpers", () => {
       const msg001 = diff.messages.find((m) => m.id === "msg-001");
       expect(msg001?.type).toBe("changed");
       expect(msg001?.fields.some((f) => f.fieldName === "subject")).toBe(true);
-      expect(msg001?.fields.find((f) => f.fieldName === "subject")?.newValue).toBe("Welcome (Updated)");
+      expect(msg001?.fields.find((f) => f.fieldName === "subject")?.newValue).toBe(
+        "Welcome (Updated)",
+      );
 
       const msg002 = diff.messages.find((m) => m.id === "msg-002");
       expect(msg002?.type).toBe("removed");
