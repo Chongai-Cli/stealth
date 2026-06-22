@@ -3,12 +3,14 @@
 
 import type {
   Vendor,
+  CommunicationRecord,
+  VendorMetrics,
+} from "../types";
+import {
   VendorCategory,
   VendorStatus,
-  CommunicationRecord,
   CommunicationType,
   CommunicationStatus,
-  VendorMetrics,
 } from "../types";
 
 /**
@@ -87,7 +89,7 @@ export function createMockVendorMetrics(overrides?: Partial<VendorMetrics>): Ven
     engagementScore: overrides?.engagementScore || 75,
     communicationFrequency: overrides?.communicationFrequency || 3.2,
     lastInteraction: overrides?.lastInteraction || new Date(),
-    trend: overrides?.trend || "stable",
+    trend: overrides?.trend || "stable" as any,
     metadata: overrides?.metadata,
   };
 }

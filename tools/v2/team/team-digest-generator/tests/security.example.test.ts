@@ -1,4 +1,4 @@
-﻿/* eslint-disable no-control-regex, no-useless-escape */
+/* eslint-disable no-control-regex, no-useless-escape */
 /**
  * Example security tests for Team Digest Generator
  * These tests demonstrate how to validate input handling and XSS prevention
@@ -6,12 +6,14 @@
  * To run: npm test -- tests/security.example.test.ts
  */
 
+import { describe, expect, it } from "vitest";
+
 import {
   validateDigestConfig,
   validateEmail,
   validateTeamMember,
   validateScheduleExpression,
-} from "../../services/inputValidation";
+} from "../services/inputValidation";
 import {
   sanitizeEmailContent,
   sanitizeEmailSubject,
@@ -19,7 +21,7 @@ import {
   sanitizeFilename,
   escapeHtml,
   validateAttachment,
-} from "../../services/contentSanitization";
+} from "../services/contentSanitization";
 import {
   mockTeamMembers,
   mockEmails,

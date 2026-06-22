@@ -11,7 +11,5 @@ export type {
   DateRange,
   FetchState,
   ResponseTimeEntry,
-  ResponseTimeMetrics,
-  ResponseTimeService,
   TeamMember,
 } from "./types";
