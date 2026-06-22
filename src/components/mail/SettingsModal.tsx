@@ -18,7 +18,7 @@ import {
   User,
   X,
 } from "lucide-react";
-import { useState, type CSSProperties } from "react";
+import { useState, useEffect, useMemo, useCallback, type CSSProperties } from "react";
 import { Surface } from "@/features/design-system";
 import { cn } from "@/lib/utils";
 import { SHORTCUT_DEFINITIONS } from "@/features/command-palette";
@@ -448,29 +448,31 @@ function InboxSettings({
     setPreviewTemplateId(findMailboxPolicyTemplate(preferences)?.id ?? "custom");
   }, [open, preferences]);
 
-  const currentDraft = {
+  const currentDraft = useMemo(() => ({
     unknownSenders: preferences.unknownSenders,
     minimumPostage: preferences.minimumPostage,
-  } as const;
+  }), [preferences.unknownSenders, preferences.minimumPostage]);
 
-  const liveTemplate = findMailboxPolicyTemplate(currentDraft);
+  const liveTemplate = useMemo(() => findMailboxPolicyTemplate(currentDraft), [currentDraft]);
 
-  const selectedPreview =
+  const selectedPreview = useMemo(() => 
     previewTemplateId === "custom"
       ? (savedCustomTemplate ??
         buildCustomMailboxPolicyTemplate(currentDraft, liveTemplate?.id ?? null))
-      : (MAILBOX_POLICY_TEMPLATES.find((template) => template.id === previewTemplateId) ?? null);
+      : (MAILBOX_POLICY_TEMPLATES.find((template) => template.id === previewTemplateId) ?? null),
+  [previewTemplateId, savedCustomTemplate, currentDraft, liveTemplate?.id]);
 
-  const selectedPreferences =
+  const selectedPreferences = useMemo(() => 
     previewTemplateId === "custom"
       ? savedCustomTemplate
         ? savedCustomTemplateToPreferences(savedCustomTemplate)
         : currentDraft
       : selectedPreview
         ? templateToPreferences(selectedPreview)
-        : currentDraft;
+        : currentDraft,
+  [previewTemplateId, savedCustomTemplate, currentDraft, selectedPreview]);
 
-  const previewMatchesCurrent =
+  const previewMatchesCurrent = useMemo(() => 
     previewTemplateId === "custom"
       ? savedCustomTemplate
         ? savedCustomTemplate.policy.unknownSenders === preferences.unknownSenders &&
@@ -478,18 +480,20 @@ function InboxSettings({
         : true
       : selectedPreview
         ? mailboxPolicyTemplateMatchesPreferences(selectedPreview, currentDraft)
-        : false;
+        : false,
+  [previewTemplateId, savedCustomTemplate, preferences.unknownSenders, preferences.minimumPostage, selectedPreview, currentDraft]);
 
-  const applyingWillReplaceCurrent =
+  const applyingWillReplaceCurrent = useMemo(() => 
     previewTemplateId === "custom"
       ? !!savedCustomTemplate && !previewMatchesCurrent
-      : !previewMatchesCurrent;
+      : !previewMatchesCurrent,
+  [previewTemplateId, savedCustomTemplate, previewMatchesCurrent]);
 
-  const handleTemplateChange = (id: MailboxPolicyTemplateId) => {
+  const handleTemplateChange = useCallback((id: MailboxPolicyTemplateId | "custom") => {
     setPreviewTemplateId(id);
-  };
+  }, []);
 
-  const handleApply = () => {
+  const handleApply = useCallback(() => {
     if (!selectedPreview) return;
 
     if (previewTemplateId === "custom") {
@@ -511,30 +515,30 @@ function InboxSettings({
       ...preferences,
       ...templateToPreferences(selectedPreview),
     });
-  };
+  }, [selectedPreview, previewTemplateId, savedCustomTemplate, currentDraft, liveTemplate?.id, onChange, preferences]);
 
-  const handleSaveCustom = () => {
+  const handleSaveCustom = useCallback(() => {
     setSavedCustomTemplate(
       buildCustomMailboxPolicyTemplate(currentDraft, liveTemplate?.id ?? null),
     );
     setPreviewTemplateId("custom");
-  };
+  }, [currentDraft, liveTemplate?.id]);
 
-  const updateUnknownSenders = (unknownSenders: UiPreferences["unknownSenders"]) => {
+  const updateUnknownSenders = useCallback((unknownSenders: UiPreferences["unknownSenders"]) => {
     setPreviewTemplateId("custom");
     onChange({
       ...preferences,
       unknownSenders,
     });
-  };
+  }, [onChange, preferences]);
 
-  const updateMinimumPostage = (minimumPostage: string) => {
+  const updateMinimumPostage = useCallback((minimumPostage: string) => {
     setPreviewTemplateId("custom");
     onChange({
       ...preferences,
       minimumPostage,
     });
-  };
+  }, [onChange, preferences]);
 
   return (
     <div className="space-y-6">
