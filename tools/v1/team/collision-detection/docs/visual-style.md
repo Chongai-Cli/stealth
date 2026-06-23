@@ -16,21 +16,21 @@ integration issue wires it in.
 
 ## Colors
 
-| Token                   | Hex       | Usage                              |
-| ----------------------- | --------- | ---------------------------------- |
-| `--cd-border`           | `#e0e0e0` | Default border and loading ring    |
-| `--cd-border-dashed`    | `#ccc`    | Dashed border for empty state      |
-| `--cd-text-secondary`   | `#666`    | Labels, metadata, hint text        |
-| `--cd-accent`           | `#0066cc` | Loading spinner top border         |
-| `--cd-error-border`     | `#e74c3c` | Error state border                 |
-| `--cd-error-bg`         | `#fdf0ef` | Error state background             |
-| `--cd-error-text`       | `#c0392b` | Error heading and retry border     |
-| `--cd-header-bg`        | `#f9f9fb` | Success view header background     |
-| `--cd-warning-border`   | `#e67e22` | Warning severity event border      |
-| `--cd-warning-bg`       | `#fef9e7` | Warning severity event background  |
-| `--cd-critical-border`  | `#e74c3c` | Critical severity event border     |
-| `--cd-critical-bg`      | `#fdf0ef` | Critical severity event background |
-| `--cd-success-text`     | `#27ae60` | All-clear success message          |
+| Token                  | Hex       | Usage                              |
+| ---------------------- | --------- | ---------------------------------- |
+| `--cd-border`          | `#e0e0e0` | Default border and loading ring    |
+| `--cd-border-dashed`   | `#ccc`    | Dashed border for empty state      |
+| `--cd-text-secondary`  | `#666`    | Labels, metadata, hint text        |
+| `--cd-accent`          | `#0066cc` | Loading spinner top border         |
+| `--cd-error-border`    | `#e74c3c` | Error state border                 |
+| `--cd-error-bg`        | `#fdf0ef` | Error state background             |
+| `--cd-error-text`      | `#c0392b` | Error heading and retry border     |
+| `--cd-header-bg`       | `#f9f9fb` | Success view header background     |
+| `--cd-warning-border`  | `#e67e22` | Warning severity event border      |
+| `--cd-warning-bg`      | `#fef9e7` | Warning severity event background  |
+| `--cd-critical-border` | `#e74c3c` | Critical severity event border     |
+| `--cd-critical-bg`     | `#fdf0ef` | Critical severity event background |
+| `--cd-success-text`    | `#27ae60` | All-clear success message          |
 
 ## Typography
 
@@ -72,9 +72,9 @@ integration issue wires it in.
 
 ## States
 
-| State   | Component               | Visual cue                                          |
-| ------- | ----------------------- | --------------------------------------------------- |
-| idle    | CollisionDetectionEmpty | Dashed border, centered placeholder message          |
+| State   | Component                 | Visual cue                                         |
+| ------- | ------------------------- | -------------------------------------------------- |
+| idle    | CollisionDetectionEmpty   | Dashed border, centered placeholder message        |
 | loading | CollisionDetectionLoading | CSS spinner animation + "Scanning active replies…" |
-| error   | CollisionDetectionError | Red border + background, error message, retry        |
-| ready   | CollisionDetectedView   | List of collision events or all-clear message       |
+| error   | CollisionDetectionError   | Red border + background, error message, retry      |
+| ready   | CollisionDetectedView     | List of collision events or all-clear message      |
