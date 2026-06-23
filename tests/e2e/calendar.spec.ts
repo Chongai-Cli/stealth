@@ -51,7 +51,7 @@ test.describe("calendar linking", () => {
     // Create a new event
     await page.getByRole("button", { name: /New event/i }).click();
     await page.getByPlaceholder("What is happening?").fill("My Custom Meeting");
-    await page.getByRole("button", { name: /Save event/i }).click();
+    await page.getByRole("button", { name: /Create event/i }).click();
 
     await expect(page.getByText("My Custom Meeting")).toBeVisible();
     await expect(page.getByText("Event created")).toBeVisible();
