@@ -34,7 +34,11 @@ export function AgentList({ agents, threads, onStatusChange }: AgentListProps) {
           <p className="text-[10px] text-zinc-500 mt-1">Check team assignments or refresh data.</p>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1" role="list" aria-label="Team Agents">
+        <div
+          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1"
+          role="list"
+          aria-label="Team Agents"
+        >
           {agents.map((agent) => {
             const assigned = getAssignedThreads(agent.id);
 

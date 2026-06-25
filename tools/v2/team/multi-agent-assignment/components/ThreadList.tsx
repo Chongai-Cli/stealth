@@ -83,7 +83,9 @@ export function ThreadList({
               aria-controls="threads-panel"
               onClick={() => setFilter(t)}
               className={`px-3 py-1.5 rounded-md text-[10px] font-semibold uppercase tracking-wider transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-sky-500/50 ${
-                filter === t ? "bg-zinc-800 text-sky-400 shadow-sm" : "text-zinc-400 hover:text-zinc-200"
+                filter === t
+                  ? "bg-zinc-800 text-sky-400 shadow-sm"
+                  : "text-zinc-400 hover:text-zinc-200"
               }`}
             >
               {t}
@@ -104,7 +106,9 @@ export function ThreadList({
               📥
             </span>
             <p className="text-xs text-zinc-400 font-medium">
-              {threads.length === 0 ? "No active threads in the queue." : "No matching threads found."}
+              {threads.length === 0
+                ? "No active threads in the queue."
+                : "No matching threads found."}
             </p>
             <p className="text-[10px] text-zinc-500 mt-1">
               Try modifying filters or simulating an incoming mail stream.
