@@ -727,6 +727,12 @@ export function DemoAdminDashboard({ className }: DemoAdminDashboardProps) {
     setSelectedMailSubject(null);
   }, []);
 
+  const handlePresetChange = useCallback((id: PresetId) => {
+    setActivePresetId(id);
+    setSelectedAccountAddress(null);
+    setSelectedMailSubject(null);
+  }, []);
+
   const Icon = SECTION_ICON[activeSection];
 
   return (
@@ -817,11 +823,7 @@ export function DemoAdminDashboard({ className }: DemoAdminDashboardProps) {
           {activeSection === "overview" && (
             <OverviewContent
               activePresetId={activePresetId}
-              setActivePresetId={useCallback((id: PresetId) => {
-                setActivePresetId(id);
-                setSelectedAccountAddress(null);
-                setSelectedMailSubject(null);
-              }, [])}
+              setActivePresetId={handlePresetChange}
               stats={stats}
             />
           )}
