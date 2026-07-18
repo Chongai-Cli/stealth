@@ -32,64 +32,64 @@ failures surface as `INTERNAL_ERROR`.
 
 ## Input Schema (`PaymentApprovalInput`)
 
-| Field       | Type                              | Required | Behavior |
-| ----------- | --------------------------------- | -------- | -------- |
-| `paymentId` | `string`                         | yes      | Stable id of the payment request being acted on. Must be non-empty. |
-| `approverId`| `string`                         | yes      | Identity of the approver recording the decision. Must be non-empty. |
-| `decision`  | `"approve" \| "reject"`          | yes      | The decision to record. Invalid values yield `VALIDATION_FAILED`. |
-| `notes`     | `string?`                        | no       | Free-form rationale for audit only. Never rendered as UI. Must be a string when present. |
-| `decidedAt` | `string \| Date?`                | no       | Authoritative decision time. Normalized to an ISO-8601 string. Defaults to now when omitted. |
-| `context`   | `PaymentApprovalContext?`        | no       | Security context. Omitting it enables local/demo mode (no authorization). When present, policy is enforced. |
+| Field        | Type                      | Required | Behavior                                                                                                    |
+| ------------ | ------------------------- | -------- | ----------------------------------------------------------------------------------------------------------- |
+| `paymentId`  | `string`                  | yes      | Stable id of the payment request being acted on. Must be non-empty.                                         |
+| `approverId` | `string`                  | yes      | Identity of the approver recording the decision. Must be non-empty.                                         |
+| `decision`   | `"approve" \| "reject"`   | yes      | The decision to record. Invalid values yield `VALIDATION_FAILED`.                                           |
+| `notes`      | `string?`                 | no       | Free-form rationale for audit only. Never rendered as UI. Must be a string when present.                    |
+| `decidedAt`  | `string \| Date?`         | no       | Authoritative decision time. Normalized to an ISO-8601 string. Defaults to now when omitted.                |
+| `context`    | `PaymentApprovalContext?` | no       | Security context. Omitting it enables local/demo mode (no authorization). When present, policy is enforced. |
 
 ### `PaymentApprovalContext`
 
-| Field           | Type       | Required | Behavior |
-| --------------- | ---------- | -------- | -------- |
-| `approverId`    | `string`   | yes      | Expected to match the top-level `approverId`. |
-| `role`          | `string`   | yes      | Role used for policy evaluation (e.g. `admin`, `manager`). Unknown roles → `UNAUTHORIZED`. |
-| `approvalLimit` | `number?`  | no       | Monetary ceiling for the caller. If the payment amount exceeds it → `APPROVER_LIMIT_EXCEEDED`. Omit to skip the check. |
-| `allowedRoles`  | `string[]?`| no       | Roles permitted to approve. Defaults to `["admin","manager"]`. |
+| Field           | Type        | Required | Behavior                                                                                                               |
+| --------------- | ----------- | -------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `approverId`    | `string`    | yes      | Expected to match the top-level `approverId`.                                                                          |
+| `role`          | `string`    | yes      | Role used for policy evaluation (e.g. `admin`, `manager`). Unknown roles → `UNAUTHORIZED`.                             |
+| `approvalLimit` | `number?`   | no       | Monetary ceiling for the caller. If the payment amount exceeds it → `APPROVER_LIMIT_EXCEEDED`. Omit to skip the check. |
+| `allowedRoles`  | `string[]?` | no       | Roles permitted to approve. Defaults to `["admin","manager"]`.                                                         |
 
 ## Output Schema (`PaymentApprovalResult`)
 
 ```ts
 interface PaymentApprovalResult {
   ok: boolean;
-  data?: PaymentApprovalSuccess;   // present when ok === true
-  error?: PaymentApprovalError;    // present when ok === false
+  data?: PaymentApprovalSuccess; // present when ok === true
+  error?: PaymentApprovalError; // present when ok === false
 }
 ```
 
 ### `PaymentApprovalSuccess`
 
-| Field           | Type                       | Description |
-| --------------- | -------------------------- | ----------- |
-| `paymentId`     | `string`                   | Echoed input payment id. |
-| `approverId`    | `string`                   | Echoed approver id. |
-| `decision`      | `"approve" \| "reject"`    | Echoed decision. |
-| `decidedAt`     | `string` (ISO-8601)        | Normalized decision timestamp. |
-| `status`        | `ApprovalStatus`           | Resulting status: `approved` or `rejected`. |
-| `approvalCount` | `number`                   | Approvals recorded against the payment. |
-| `rejectionCount`| `number`                   | Rejections recorded against the payment. |
+| Field            | Type                    | Description                                 |
+| ---------------- | ----------------------- | ------------------------------------------- |
+| `paymentId`      | `string`                | Echoed input payment id.                    |
+| `approverId`     | `string`                | Echoed approver id.                         |
+| `decision`       | `"approve" \| "reject"` | Echoed decision.                            |
+| `decidedAt`      | `string` (ISO-8601)     | Normalized decision timestamp.              |
+| `status`         | `ApprovalStatus`        | Resulting status: `approved` or `rejected`. |
+| `approvalCount`  | `number`                | Approvals recorded against the payment.     |
+| `rejectionCount` | `number`                | Rejections recorded against the payment.    |
 
 ### `PaymentApprovalError`
 
-| Field     | Type                        | Description |
-| --------- | --------------------------- | ----------- |
-| `code`    | `PaymentApprovalErrorCode`  | Stable, typed error code. **Branch on this, not on `message`.** |
-| `message` | `string`                    | Human-readable text. Not stable across versions. |
-| `field`   | `string?`                   | Offending field, present only for `VALIDATION_FAILED`. |
+| Field     | Type                       | Description                                                     |
+| --------- | -------------------------- | --------------------------------------------------------------- |
+| `code`    | `PaymentApprovalErrorCode` | Stable, typed error code. **Branch on this, not on `message`.** |
+| `message` | `string`                   | Human-readable text. Not stable across versions.                |
+| `field`   | `string?`                  | Offending field, present only for `VALIDATION_FAILED`.          |
 
 ## Error Codes
 
-| Code                      | Meaning | Trigger |
-| ------------------------- | ------- | ------- |
-| `VALIDATION_FAILED`       | Input failed the contract. | Missing/empty `paymentId`, `approverId`; invalid `decision`; bad `notes`/`decidedAt` types. Carries `field`. |
-| `PAYMENT_NOT_FOUND`       | Referenced payment does not exist. | `store.getPayment` returns `undefined`. |
-| `ALREADY_DECIDED`         | A terminal decision already exists. | `store.getDecisions` is non-empty. |
-| `UNAUTHORIZED`            | Caller lacks required role. | `context.role` is not in `allowedRoles`. |
-| `APPROVER_LIMIT_EXCEEDED` | Amount exceeds approver ceiling. | `payment.amount > context.approvalLimit`. |
-| `INTERNAL_ERROR`          | Unexpected execution failure. | Any thrown error inside the execution layer (e.g. datastore outage). |
+| Code                      | Meaning                             | Trigger                                                                                                      |
+| ------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `VALIDATION_FAILED`       | Input failed the contract.          | Missing/empty `paymentId`, `approverId`; invalid `decision`; bad `notes`/`decidedAt` types. Carries `field`. |
+| `PAYMENT_NOT_FOUND`       | Referenced payment does not exist.  | `store.getPayment` returns `undefined`.                                                                      |
+| `ALREADY_DECIDED`         | A terminal decision already exists. | `store.getDecisions` is non-empty.                                                                           |
+| `UNAUTHORIZED`            | Caller lacks required role.         | `context.role` is not in `allowedRoles`.                                                                     |
+| `APPROVER_LIMIT_EXCEEDED` | Amount exceeds approver ceiling.    | `payment.amount > context.approvalLimit`.                                                                    |
+| `INTERNAL_ERROR`          | Unexpected execution failure.       | Any thrown error inside the execution layer (e.g. datastore outage).                                         |
 
 Consumers MUST NOT branch on `error.message`. Treat `message` as log-only.
 
