@@ -71,7 +71,7 @@ describe("Postage Quote Validation", () => {
     it("accepts recipient with valid base32 characters (A-Z, 2-7)", () => {
       // Base32 uses A-Z and 2-7 (no 0, 1, 8, 9)
       // Create a 56-char address with all valid base32 chars
-      const validBase32 = "GABCDEFGHIJKLMNOPQRSTUVWXYZ234567ABCDEFGHIJKLMNOPQR2";
+      const validBase32 = "GABCDEFGHIJKLMNOPQRSTUVWXYZ234567ABCDEFGHIJKLMNOPQRSTUVW";
       expect(validBase32.length).toBe(56);
       expect(stellarAddressSchema.parse(validBase32)).toBe(validBase32);
     });

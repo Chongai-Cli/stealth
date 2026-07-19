@@ -13,12 +13,14 @@
 ### ✅ Invalid identifiers return 400-level errors with stable error code
 
 **Implementation**:
+
 - Invalid Stellar addresses trigger Zod validation errors
 - `normalizeApiError()` converts Zod errors to HTTP 422 `validation_error`
 - Error code is stable and consistent across all validation failures
 - Field-specific error details included in response
 
 **Evidence**:
+
 ```typescript
 // From errors.ts normalizeApiError()
 if (error instanceof ZodError) {
@@ -27,6 +29,7 @@ if (error instanceof ZodError) {
 ```
 
 **Error Response Format**:
+
 ```json
 {
   "error": {
@@ -54,7 +57,7 @@ if (error instanceof ZodError) {
    - Wrong prefix (not 'G')
    - Invalid base32 characters (0, 1, 8, 9, special chars)
    - Invalid length (< 56 or > 56 characters)
-   - Special characters (@, *, etc.)
+   - Special characters (@, \*, etc.)
 
 3. **Oversized**:
    - 57 characters (one above boundary)
@@ -75,18 +78,21 @@ if (error instanceof ZodError) {
    - Combined normalization
 
 **Test Files**:
+
 - `tests/unit/api/postage-quote-validation.test.ts` (70+ cases)
 - `tests/unit/api/postage-quote-endpoint-validation.test.ts` (50+ cases)
 
 ### ✅ Valid requests keep the existing response shape
 
 **Implementation**:
+
 - No breaking changes to the API contract
 - Existing valid requests continue to work
 - Response structure unchanged
 - Normalization is transparent to clients
 
 **Evidence**:
+
 ```typescript
 // Valid request still returns same structure
 {
@@ -142,12 +148,14 @@ if (error instanceof ZodError) {
 ### Stellar Address Format
 
 **Requirements**:
+
 - Must start with 'G'
 - Exactly 56 characters total
 - Only valid base32 characters: A-Z, 2-7
 - No invalid characters: 0, 1, 8, 9, special characters
 
 **Normalization**:
+
 - Whitespace is trimmed automatically
 - Lowercase letters converted to uppercase
 - Applied before validation
@@ -155,6 +163,7 @@ if (error instanceof ZodError) {
 ### Error Handling
 
 **422 Validation Error** returned for:
+
 - Empty or whitespace-only inputs
 - Wrong prefix (not 'G')
 - Invalid length (not 56 characters)
@@ -167,29 +176,30 @@ if (error instanceof ZodError) {
 ### Test Execution
 
 All existing tests continue to pass:
+
 - Postage service tests: ✅ Pass
 - Domain schema tests: ✅ Pass
 - New validation tests: ✅ Pass
 
 ### Key Test Scenarios Verified
 
-| Scenario | Status | Test Location |
-|----------|--------|---------------|
-| Empty recipient/sender | ✅ Pass | postage-quote-validation.test.ts |
-| Whitespace-only inputs | ✅ Pass | postage-quote-validation.test.ts |
-| Invalid prefix | ✅ Pass | postage-quote-endpoint-validation.test.ts |
-| Invalid length (too short) | ✅ Pass | postage-quote-validation.test.ts |
-| Invalid length (too long) | ✅ Pass | postage-quote-validation.test.ts |
-| Invalid base32 characters | ✅ Pass | postage-quote-validation.test.ts |
-| Special characters | ✅ Pass | postage-quote-validation.test.ts |
-| Null/undefined values | ✅ Pass | postage-quote-endpoint-validation.test.ts |
-| Non-string types | ✅ Pass | postage-quote-endpoint-validation.test.ts |
-| Oversized strings | ✅ Pass | postage-quote-endpoint-validation.test.ts |
-| Normalization (lowercase) | ✅ Pass | postage-quote-validation.test.ts |
-| Normalization (whitespace) | ✅ Pass | postage-quote-validation.test.ts |
-| Valid base32 characters | ✅ Pass | postage-quote-validation.test.ts |
+| Scenario                   | Status  | Test Location                             |
+| -------------------------- | ------- | ----------------------------------------- |
+| Empty recipient/sender     | ✅ Pass | postage-quote-validation.test.ts          |
+| Whitespace-only inputs     | ✅ Pass | postage-quote-validation.test.ts          |
+| Invalid prefix             | ✅ Pass | postage-quote-endpoint-validation.test.ts |
+| Invalid length (too short) | ✅ Pass | postage-quote-validation.test.ts          |
+| Invalid length (too long)  | ✅ Pass | postage-quote-validation.test.ts          |
+| Invalid base32 characters  | ✅ Pass | postage-quote-validation.test.ts          |
+| Special characters         | ✅ Pass | postage-quote-validation.test.ts          |
+| Null/undefined values      | ✅ Pass | postage-quote-endpoint-validation.test.ts |
+| Non-string types           | ✅ Pass | postage-quote-endpoint-validation.test.ts |
+| Oversized strings          | ✅ Pass | postage-quote-endpoint-validation.test.ts |
+| Normalization (lowercase)  | ✅ Pass | postage-quote-validation.test.ts          |
+| Normalization (whitespace) | ✅ Pass | postage-quote-validation.test.ts          |
+| Valid base32 characters    | ✅ Pass | postage-quote-validation.test.ts          |
 | Exact length boundary (56) | ✅ Pass | postage-quote-endpoint-validation.test.ts |
-| Deterministic errors | ✅ Pass | postage-quote-endpoint-validation.test.ts |
+| Deterministic errors       | ✅ Pass | postage-quote-endpoint-validation.test.ts |
 
 ## Commits
 
@@ -212,18 +222,21 @@ All existing tests continue to pass:
 ## Security Improvements
 
 ### Input Sanitization
+
 - All addresses trimmed and normalized
 - No code execution risk
 - Oversized inputs rejected efficiently
 - Type coercion prevented
 
 ### DoS Prevention
+
 - Extremely large inputs rejected promptly
 - No exponential backtracking in regex
 - Bounded string processing (56 char max)
 - No resource exhaustion possible
 
 ### Error Handling
+
 - Deterministic error responses
 - No sensitive information in errors
 - Stable error codes for automation
@@ -232,6 +245,7 @@ All existing tests continue to pass:
 ## Backward Compatibility
 
 ✅ Fully backward compatible:
+
 - No breaking changes to API
 - Existing valid requests work unchanged
 - Response structure preserved
@@ -240,18 +254,21 @@ All existing tests continue to pass:
 ## Developer Experience Improvements
 
 ### Documentation
+
 - Comprehensive inline documentation in endpoint
 - Detailed validation guide (POSTAGE_QUOTE_VALIDATION.md)
 - Examples for all error cases
 - Client integration examples
 
 ### Error Messages
+
 - Clear, actionable error messages
 - Field-specific error details
 - Consistent error codes
 - Helpful validation failure explanations
 
 ### Testing
+
 - 120+ test cases covering all scenarios
 - Easy to verify behavior
 - Clear test names and organization
@@ -267,14 +284,16 @@ All existing tests continue to pass:
 ## Future Enhancements
 
 Potential improvements for future iterations:
+
 - Add rate limiting for quote requests
 - Cache validation results for repeated addresses
 - Add metrics for validation failure rates
-- Support for federated addresses (eve*stealth.xyz)
+- Support for federated addresses (eve\*stealth.xyz)
 
 ## Conclusion
 
 All acceptance criteria have been met:
+
 - ✅ Invalid identifiers return 422 with stable `validation_error` code
 - ✅ Boundary tests comprehensively cover edge cases
 - ✅ Valid requests maintain existing response shape
