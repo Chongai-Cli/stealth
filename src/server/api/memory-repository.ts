@@ -1,5 +1,12 @@
-import type { MailboxPolicy, Postage, Receipt, SenderRule } from "./domain";
-import type { ApiRepository } from "./repository";
+import type {
+  IdempotencyRecord,
+  MailboxPolicy,
+  Postage,
+  PostageStatus,
+  Receipt,
+  SenderRule,
+} from "./domain";
+import type { ApiRepository, PostageTransitionResult } from "./repository";
 
 function key(owner: string, sender: string) {
   return `${owner}:${sender}`;
@@ -11,6 +18,7 @@ export class MemoryApiRepository implements ApiRepository {
   private readonly receipts = new Map<string, Receipt>();
   private readonly senderRules = new Map<string, SenderRule>();
   private readonly counters = new Map<string, number[]>();
+  private readonly idempotency = new Map<string, IdempotencyRecord>();
 
   async getPolicy(owner: string) {
     return structuredClone(this.policies.get(owner) ?? null);
@@ -39,6 +47,27 @@ export class MemoryApiRepository implements ApiRepository {
   async setPostage(postage: Postage) {
     this.postage.set(postage.messageId, structuredClone(postage));
     return structuredClone(postage);
+  }
+
+  async transitionPostage(
+    messageId: string,
+    expectedStatus: PostageStatus,
+    nextStatus: PostageStatus,
+  ): Promise<PostageTransitionResult> {
+    // No `await` occurs between the read and the write below, so this
+    // check-then-act sequence runs to completion within a single
+    // microtask and cannot interleave with a concurrent call for the
+    // same messageId, giving us the atomicity the interface requires.
+    const current = this.postage.get(messageId);
+    if (!current) {
+      return { outcome: "not-found" };
+    }
+    if (current.status !== expectedStatus) {
+      return { outcome: "conflict", postage: structuredClone(current) };
+    }
+    const updated: Postage = { ...current, status: nextStatus };
+    this.postage.set(messageId, updated);
+    return { outcome: "applied", postage: structuredClone(updated) };
   }
 
   async getReceipt(messageId: string) {
@@ -73,15 +102,54 @@ export class MemoryApiRepository implements ApiRepository {
     return this.counters.get(key)?.length ?? 0;
   }
 
-  async incrementCounter(key: string, windowSeconds: number) {
+  async incrementCounter(key: string, windowSeconds: number, amount = 1) {
+    if (!Number.isSafeInteger(amount) || amount < 1) {
+      throw new RangeError("Counter increment amount must be a positive safe integer");
+    }
     const now = Date.now();
     const windowMilliseconds = windowSeconds * 1000;
     const timestamps = this.counters.get(key) ?? [];
-    const filtered = [...timestamps, now].filter(
+    const filtered = [...timestamps, ...Array<number>(amount).fill(now)].filter(
       (timestamp) => now - timestamp <= windowMilliseconds,
     );
     this.counters.set(key, filtered);
     return filtered.length;
+  }
+
+  async acquireIdempotencyRecord(
+    key: string,
+    leaseMs: number,
+  ): Promise<import("./repository").AcquireIdempotencyResult> {
+    const existing = this.idempotency.get(key);
+    const now = Date.now();
+
+    if (existing) {
+      if (existing.state === "completed") {
+        return { status: "completed", record: structuredClone(existing) };
+      }
+
+      // existing is in_progress. Check if lease expired
+      if (now < new Date(existing.recoveryExpiryAt).getTime()) {
+        return { status: "in_progress" };
+      }
+    }
+
+    // Acquire the lock
+    this.idempotency.set(key, {
+      state: "in_progress",
+      createdAt: new Date(now).toISOString(),
+      recoveryExpiryAt: new Date(now + leaseMs).toISOString(),
+    });
+
+    return { status: "acquired" };
+  }
+
+  async getIdempotencyRecord(key: string) {
+    return structuredClone(this.idempotency.get(key) ?? null);
+  }
+
+  async setIdempotencyRecord(key: string, record: IdempotencyRecord) {
+    this.idempotency.set(key, structuredClone(record));
   }
 
   reset() {
@@ -90,5 +158,6 @@ export class MemoryApiRepository implements ApiRepository {
     this.receipts.clear();
     this.senderRules.clear();
     this.counters.clear();
+    this.idempotency.clear();
   }
 }
