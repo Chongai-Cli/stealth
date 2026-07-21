@@ -1,4 +1,3 @@
-import type { ZodSchema } from "zod";
 import type {
   IdempotencyRecord,
   MailboxPolicy,
@@ -7,7 +6,6 @@ import type {
   Receipt,
   SenderRule,
 } from "./domain";
-import { DataIntegrityError } from "./errors";
 
 /**
  * Outcome of an atomic compare-and-swap postage state transition.
@@ -63,7 +61,6 @@ export interface ApiRepository {
   getRelayDeadLetterCount(relayId: string): Promise<number>;
   getCounter(key: string): Promise<number>;
   incrementCounter(key: string, windowSeconds: number, amount?: number): Promise<number>;
-  reset?(): void;
 }
 
 export const defaultMailboxPolicy: MailboxPolicy = {

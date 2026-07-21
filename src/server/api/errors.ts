@@ -33,6 +33,27 @@ export interface ValidationErrorDetails {
   validationErrors: ValidationErrorItem[];
 }
 
+export type ValidationRuleCode =
+  | "invalid_type"
+  | "format"
+  | "min_length"
+  | "max_length"
+  | "minimum"
+  | "maximum"
+  | "missing"
+  | "unknown_field"
+  | "invalid_value";
+
+export interface ValidationErrorItem {
+  path: string;
+  rule: ValidationRuleCode;
+  message: string;
+}
+
+export interface ValidationErrorDetails {
+  validationErrors: ValidationErrorItem[];
+}
+
 export class ApiError extends Error {
   readonly code: ApiErrorCode;
   readonly details?: unknown;
@@ -44,28 +65,6 @@ export class ApiError extends Error {
     this.status = status;
     this.code = code;
     this.details = details;
-  }
-}
-
-/**
- * Issue #1508: classified data-integrity error that never leaks the
- * contents of a corrupt record to clients.
- *
- * `recordType` identifies the kind of record that failed validation
- * (e.g. "postage", "receipt"). `correlationId` ties the error back to
- * server-side diagnostics without exposing the corrupt payload.
- */
-export class DataIntegrityError extends Error {
-  readonly recordType: string;
-  readonly correlationId: string;
-  readonly code: ApiErrorCode = "data_integrity_error";
-  readonly status = 500;
-
-  constructor(recordType: string, correlationId: string, message?: string) {
-    super(message ?? `Stored ${recordType} record failed validation`);
-    this.name = "DataIntegrityError";
-    this.recordType = recordType;
-    this.correlationId = correlationId;
   }
 }
 

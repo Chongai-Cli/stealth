@@ -65,7 +65,7 @@ export function validateApiConfig(config: ApiConfig): void {
 
 export async function getApiContext(): Promise<ApiContext> {
   if (!import.meta.env.PROD) {
-    globalApi.__stealthApiRepository ??= new ValidatedApiRepository(new MemoryApiRepository());
+    globalApi.__stealthApiRepository ??= new MemoryApiRepository();
     return { repository: globalApi.__stealthApiRepository };
   }
 
@@ -95,9 +95,7 @@ export async function getApiContext(): Promise<ApiContext> {
   }
 
   const { HybridApiRepository } = await import("./kv-repository");
-  const repo = new ValidatedApiRepository(
-    new HybridApiRepository(env.STEALTH_KV, env.STEALTH_COORDINATOR),
-  );
+  const repo = new HybridApiRepository(env.STEALTH_KV, env.STEALTH_COORDINATOR);
   globalApi.__stealthApiRepository = repo;
   return { repository: repo };
 }

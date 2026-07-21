@@ -8,6 +8,8 @@ import { buildDeviceFingerprint } from "@/server/api/abuse-service";
 import { submitPostage, type SubmitPostageContext } from "@/server/api/postage-service";
 import { parseJsonBody } from "@/server/api/request";
 import { apiSuccess, handleApiRequest } from "@/server/api/response";
+import { acquireIdempotency, recordIdempotency } from "@/server/api/idempotency-service";
+import { ApiError } from "@/server/api/errors";
 
 const submissionSchema = z.object({
   amount: stroopAmountSchema,
@@ -24,6 +26,22 @@ export const Route = createFileRoute("/api/v1/postage/")({
         handleApiRequest(request, async () => {
           const input = await parseJsonBody(request, submissionSchema);
           requireActorMatches(request, input.sender);
+
+          const repo = (await getApiContext()).repository;
+          const rawIdempotencyKey = request.headers.get("x-idempotency-key");
+          if (rawIdempotencyKey) {
+            const result = await acquireIdempotency(repo, input.sender, rawIdempotencyKey);
+            if (result.status === "completed") {
+              return apiSuccess(request, result.record.body, {
+                status: result.record.status,
+                headers: { "x-idempotency-replayed": "true" },
+              });
+            }
+            if (result.status === "in_progress") {
+              throw new ApiError(409, "conflict", "Request is already in progress");
+            }
+          }
+
           const ip =
             request.headers.get("cf-connecting-ip") ??
             request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
@@ -51,12 +69,12 @@ export const Route = createFileRoute("/api/v1/postage/")({
             relayId,
             sender: input.sender,
           };
-          const postage = await submitPostage(
-            getApiContext().repository,
-            input,
-            new Date(),
-            context,
-          );
+          const postage = await submitPostage(repo, input, new Date(), context);
+
+          if (rawIdempotencyKey) {
+            await recordIdempotency(repo, input.sender, rawIdempotencyKey, 201, postage);
+          }
+
           return apiSuccess(request, postage, { status: 201 });
         }),
     },
