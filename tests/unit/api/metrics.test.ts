@@ -25,9 +25,9 @@ describe("metrics", () => {
       incrementCounter("api_requests_total", { method: "POST", path: "/api/data", status: "201" });
       incrementCounter("api_requests_total", { method: "POST", path: "/api/data", status: "201" });
       const snap = snapshot();
-      expect(
-        snap.counters['api_requests_total{method:"POST",path:"/api/data",status:"201"}'],
-      ).toBe(2);
+      expect(snap.counters['api_requests_total{method:"POST",path:"/api/data",status:"201"}']).toBe(
+        2,
+      );
     });
 
     it("separates counters by labels", () => {
@@ -58,7 +58,7 @@ describe("metrics", () => {
 
     it("places values in the correct buckets", () => {
       const labels = { method: "GET", path: "/api/test", status: "200" };
-      recordHistogram("api_latency", 3, labels);  // ~5
+      recordHistogram("api_latency", 3, labels); // ~5
       recordHistogram("api_latency", 12, labels); // ~25
       recordHistogram("api_latency", 80, labels); // ~100
       recordHistogram("api_latency", 3000, labels); // ~5000
