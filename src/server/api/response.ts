@@ -22,7 +22,16 @@ interface ErrorEnvelope {
   meta: ApiMeta;
 }
 
+export const CACHE_POLICIES = {
+  NO_STORE: "no-store",
+  PUBLIC_IMMUTABLE: "public, max-age=31536000, immutable",
+  PUBLIC_REVALIDATE: "public, max-age=0, must-revalidate",
+} as const;
+
+type CachePolicy = keyof typeof CACHE_POLICIES;
+
 interface ResponseOptions {
+  cachePolicy?: CachePolicy;
   headers?: HeadersInit;
   status?: number;
 }
@@ -31,9 +40,22 @@ function getRequestId(request: Request) {
   return request.headers.get("x-request-id")?.trim() || crypto.randomUUID();
 }
 
-function responseHeaders(requestId: string, headers?: HeadersInit) {
+function responseHeaders(
+  requestId: string,
+  headers?: HeadersInit,
+  cachePolicy: CachePolicy = "NO_STORE",
+) {
   const result = new Headers(headers);
-  result.set("cache-control", "no-store");
+  const cacheControl = CACHE_POLICIES[cachePolicy];
+  const suppliedCacheControl = result.get("cache-control");
+
+  if (suppliedCacheControl !== null && suppliedCacheControl !== cacheControl) {
+    throw new TypeError(
+      "Cache-Control must be configured with a named cache policy; conflicting directives are not allowed",
+    );
+  }
+
+  result.set("cache-control", cacheControl);
   result.set("content-type", "application/json; charset=utf-8");
   result.set("x-request-id", requestId);
   return result;
@@ -52,7 +74,7 @@ export function apiSuccess<T>(request: Request, data: T, options: ResponseOption
 
   return new Response(JSON.stringify(body), {
     status: options.status ?? 200,
-    headers: responseHeaders(requestId, options.headers),
+    headers: responseHeaders(requestId, options.headers, options.cachePolicy),
   });
 }
 
@@ -93,4 +115,4 @@ export async function handleApiRequest(
   }
 }
 
-export type { ApiMeta, ErrorEnvelope, ResponseOptions, SuccessEnvelope };
+export type { ApiMeta, CachePolicy, ErrorEnvelope, ResponseOptions, SuccessEnvelope };
